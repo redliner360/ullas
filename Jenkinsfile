@@ -7,49 +7,37 @@ pipeline {
 
     stages {
 
-        stage('Clone Repository') {
+        stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/redliner360/ullas.git'
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    docker.build("${DOCKER_IMAGE}:latest")
-                }
-            }
-        }
-
-        stage('Login to Docker Hub') {
+        // ✅ LOGIN FIRST
+        stage('Docker Login') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
+                    credentialsId: 'docker-hub-cred',
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASS'
                 )]) {
-                    bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
+                    bat "docker login -u %USER% -p %PASS%"
                 }
             }
         }
 
-        stage('Push Docker Image') {
+        // ✅ THEN BUILD
+        stage('Build Image') {
             steps {
-                script {
-                    docker.withRegistry('', 'dockerhub-creds') {
-                        docker.image("${DOCKER_IMAGE}:latest").push()
-                    }
-                }
+                bat "docker build -t redliner240/ullas:latest ."
             }
         }
-    }
 
-    post {
-        success {
-            echo 'Image successfully built and pushed to Docker Hub'
-        }
-        failure {
-            echo 'Pipeline failed'
+        // ✅ THEN PUSH
+        stage('Push Image') {
+            steps {
+                bat "docker push redliner240/ullas:latest"
+            }
         }
     }
 }
